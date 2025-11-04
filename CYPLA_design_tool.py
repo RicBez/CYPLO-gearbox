@@ -83,9 +83,9 @@ def planetary_design():
     ))
 
     # Step 4: compute max number of ring teeth
-    Z_ring_max = math.floor(2 * (R_max - 4.5) / m) # foot diameter (2.5 * m) + margin (2*m)
+    Z_ring_user = math.floor(2 * (R_max - 4.5) / m) # foot diameter (2.5 * m) + margin (2*m)
     print(f"\n--> Maximum feasible number of teeth for the ring gear "
-          f"(internal gear): {Z_ring_max}")
+          f"(internal gear): {Z_ring_user}")
 
     # Step 5: approval
     ok = input("Do you want to proceed with this calculated number of teeth? (y/n): ")
@@ -105,7 +105,7 @@ def planetary_design():
             return planetary_design()
 
     # Step 6: search for gear combinations
-    Z_ring = Z_ring_max
+    Z_ring = Z_ring_user
     solutions = []
     for Z_sun in range(8, Z_ring - 8, 1):
         Z_carrier = (Z_ring + Z_sun) / 2
@@ -124,7 +124,7 @@ def planetary_design():
             solutions.append((Z_sun, int(Z_ring), int(Z_carrier), i, r_sun, r_carrier, possible_N))
 
     if not solutions:
-        print("\nNo feasible tooth combinations were found for the requested ratio. "
+        print("\nNo feasible tooth combinations were found for the requested ratio. The solutions without spcified number of planets are not available."
               "Consider adjusting the ratio or module.")
         return None
 
@@ -162,6 +162,8 @@ def compact_cam_design(D_sun, m):
         return math.floor(x) if (x - int(x)) < 0.5 else math.ceil(x)
     def compute_maxN(D, Dr):
         return custom_round((D - Dr) * math.pi / Dr)
+    def compute_Dmin(N, Dr):
+        return N*Dr/math.pi
     
     # Compute and display suggested maximum diameter
     Dme_calc = D_sun - (2.5 * m) - 2 * m - Dr
@@ -197,6 +199,8 @@ def compact_cam_design(D_sun, m):
             choice = int(input("Select the desired solution: ")) - 1
             ut, N1t, N2t = solutions[choice]
             print(f"Selected: N1={N1t}, N2={N2t}, Ratio={ut:.4f}")
+            D1min = compute_Dmin(N1t, Dr)
+            D2min = compute_Dmin(N2t, Dr)
             
             # --- Pitch circle diameters ---
             while True:
@@ -204,7 +208,11 @@ def compact_cam_design(D_sun, m):
                 D2 = float(input("Pitch circle diameter stage 2 D2 [mm]: "))
                 if D1 > Dme or D2 > Dme:
                     print(f"\n Invalid input:")
-                    print(f"    Both D1 and D2 must be ≤ {Dme:.2f} mm to respect the geometric constraint.")
+                    print(f"   Both D1 and D2 must be ≤ {Dme:.2f} mm to respect the geometric constraint.")
+                    print("    Please enter valid diameters.\n")
+                elif D1 < D1min or D2 < D2min:
+                    print(f"\n Invalid input:")
+                    print(f"    D1 must be > {D1min:.2f} and D2 must be > {D2min:.2f} mm to respect the geometric constraint.")
                     print("    Please enter valid diameters.\n")
                 else:
                     print(" Diameters accepted.\n")
@@ -365,7 +373,7 @@ def integrate_design(planet_data, cyclo_data):
     # ======== Stage 1 ========
     ax1.set_title("Integration: Planetary + Compact‑Cam Stage 1", fontsize=12)
     plot_planetary(ax1)
-    ax1.plot(cycloid1[:, 0], cycloid1[:, 1], "r", linewidth=1.8, label="Compact‑Cam Stage 1 Profile")
+    ax1.plot(cycloid1[:, 0] + ecc, cycloid1[:, 1], "r", linewidth=1.8, label="Compact‑Cam Stage 1 Profile")
 
     xp1, yp1 = circle(0, 0, pitch_R1)
     ax1.plot(xp1, yp1, "r--", linewidth=1, label="Stage 1 Pitch Circle D1")
@@ -374,13 +382,13 @@ def integrate_design(planet_data, cyclo_data):
         angle = 2 * np.pi * i / N1t
         x = pitch_R1 * np.cos(angle)
         y = pitch_R1 * np.sin(angle)
-        xr, yr = circle(x - ecc, y, roll_r)
+        xr, yr = circle(x, y, roll_r)
         ax1.fill(xr, yr, "yellow", alpha=0.6)
 
     # ======== Stage 2 ========
     ax2.set_title("Integration: Planetary + Compact‑Cam Stage 2", fontsize=12)
     plot_planetary(ax2)
-    ax2.plot(cycloid2[:, 0], cycloid2[:, 1], "r", linewidth=1.8, label="Compact‑Cam Stage 2 Profile")
+    ax2.plot(cycloid2[:, 0] + ecc, cycloid2[:, 1], "r", linewidth=1.8, label="Compact‑Cam Stage 2 Profile")
 
     xp2, yp2 = circle(0, 0, pitch_R2)
     ax2.plot(xp2, yp2, "r--", linewidth=1, label="Stage 2 Pitch Circle D2")
@@ -389,7 +397,7 @@ def integrate_design(planet_data, cyclo_data):
         angle = 2 * np.pi * i / N2t
         x = pitch_R2 * np.cos(angle)
         y = pitch_R2 * np.sin(angle)
-        xr, yr = circle(x - ecc, y, roll_r)
+        xr, yr = circle(x, y, roll_r)
         ax2.fill(xr, yr, "yellow", alpha=0.6)
 
     # === Custom Legends for both axes ===
